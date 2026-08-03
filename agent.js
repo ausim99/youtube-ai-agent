@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// 1. Fetch Breaking Real-Time AI & Tech Trends
+// 1. Fetch AI Trends
 async function fetchLatestAITrends() {
   console.log(`🌐 Fetching latest AI trends for "AI Master Hub"...`);
   try {
@@ -17,11 +17,11 @@ async function fetchLatestAITrends() {
   }
 }
 
-// 2. Generate Voiceover MP3 (Supports Full Scripts)
+// 2. Generate Voiceover MP3
 async function generateAudio(text, outputPath) {
   console.log("🎙️ Generating AI Voiceover...");
   const audioResults = await googleTTS.getAllAudioBase64(text, {
-    lang: 'bn', // Natural Bengali warmth / voice tone
+    lang: 'bn',
     slow: false,
     host: 'https://translate.google.com',
     timeout: 10000,
@@ -33,7 +33,7 @@ async function generateAudio(text, outputPath) {
   console.log("✅ Voiceover Audio Generated Successfully!");
 }
 
-// 3. Download Visual Background
+// 3. Download Background Image
 async function downloadVisualBackground(outputPath) {
   console.log("🖼️ Downloading High-Res Visual Background...");
   const imageRes = await fetch("https://picsum.photos/1080/1920");
@@ -42,7 +42,7 @@ async function downloadVisualBackground(outputPath) {
   console.log("✅ Visual Background Ready!");
 }
 
-// 4. Render Short Video using FFmpeg (-nostdin prevents hanging)
+// 4. Render Video using FFmpeg
 function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
   console.log("🎬 Rendering Video for AI Master Hub...");
   const command = `ffmpeg -nostdin -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -preset ultrafast -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${outputPath}"`;
@@ -50,9 +50,14 @@ function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
   console.log("✅ Video Rendering Complete!");
 }
 
-// 5. Upload Video with SEO to YouTube
+// 5. Upload Video to YouTube with Explicit Error Tracking
 async function uploadToYouTube(title, description, tags, videoPath) {
   console.log("🔐 Authenticating with YouTube API...");
+  
+  if (!process.env.YOUTUBE_CLIENT_ID || !process.env.YOUTUBE_CLIENT_SECRET || !process.env.YOUTUBE_REFRESH_TOKEN) {
+    throw new Error("YouTube API Keys (CLIENT_ID, SECRET, or REFRESH_TOKEN) are missing from GitHub Secrets!");
+  }
+
   const oauth2Client = new google.auth.OAuth2(
     process.env.YOUTUBE_CLIENT_ID,
     process.env.YOUTUBE_CLIENT_SECRET,
@@ -99,24 +104,24 @@ async function runAgent() {
 
     console.log("🤖 Generating Content for 'AI Master Hub'...");
     const aiPrompt = `You are a viral YouTube Shorts creator for the channel "AI Master Hub".
-    Today's Date: ${currentDate}.
-    Latest Trending AI Topics:
-    ${liveTrends}
+Today's Date: ${currentDate}.
+Latest Trending AI Topics:
+${liveTrends}
 
-    TASK: Create 1 unique, trending, fact-checked YouTube Short (45-60s) about AI tools, news, ChatGPT, Claude, Gemini, or hidden productivity features.
+TASK: Create 1 unique, trending, fact-checked YouTube Short (45-60s) about AI tools, news, ChatGPT, Claude, Gemini, or hidden productivity features.
 
-    RULES:
-    1. Focus on ONE main idea/tool. No false claims or clickbait.
-    2. Fast-paced, educational, engaging (Grade 6-8 reading level).
-    3. MUST END WITH EXACT CTA: "Subscribe to AI Master Hub for more AI secrets!"
+RULES:
+1. Focus on ONE main idea/tool. No false claims or clickbait.
+2. Fast-paced, educational, engaging (Grade 6-8 reading level).
+3. MUST END WITH EXACT CTA: "Subscribe to AI Master Hub for more AI secrets!"
 
-    Return JSON strictly with keys:
-    - title: Viral title under 60 characters
-    - hook: 5-second high-retention hook
-    - script: Full voice-over narration script (120-150 words)
-    - description: 100-word SEO description ending with the CTA
-    - tags: Array of 15 high-volume relevant hashtags
-    - thumbnailIdea: Visual thumbnail concept`;
+Return JSON strictly with keys:
+- title: Viral title under 60 characters
+- hook: 5-second high-retention hook
+- script: Full voice-over narration script (120-150 words)
+- description: 100-word SEO description ending with the CTA
+- tags: Array of 15 high-volume relevant hashtags
+- thumbnailIdea: Visual thumbnail concept`;
 
     const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -136,20 +141,22 @@ async function runAgent() {
 
     console.log("💡 Content Generated:", content.title);
 
-    // File Paths
     const audioPath = path.join(__dirname, 'audio.mp3');
     const imagePath = path.join(__dirname, 'image.jpg');
     const finalVideoPath = path.join(__dirname, 'final_aimasterhub_short.mp4');
 
-    // Generate Audio, Visuals, and Render Video
     await generateAudio(content.script, audioPath);
     await downloadVisualBackground(imagePath);
     createVideoWithFFmpeg(imagePath, audioPath, finalVideoPath);
 
     // Upload to YouTube
-    let youtubeUrl = "YouTube Keys Not Configured";
-    if (process.env.YOUTUBE_REFRESH_TOKEN) {
+    let youtubeUrl = "";
+    try {
       youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, finalVideoPath);
+      console.log("✅ YouTube Upload Success:", youtubeUrl);
+    } catch (ytError) {
+      console.error("❌ YouTube Upload Failed:", ytError.message);
+      youtubeUrl = `Upload Failed: ${ytError.message}`;
     }
 
     // Send Comprehensive Telegram Report
@@ -160,9 +167,8 @@ async function runAgent() {
       `🔗 **YouTube Link:** ${youtubeUrl}\n\n` +
       `⚡ **5s Hook:** "${content.hook}"\n\n` +
       `🎙️ **Script (120-150 words):**\n"${content.script}"\n\n` +
-      `🖼️ **Thumbnail Concept:** ${content.thumbnailIdea}\n\n` +
       `🏷️ **SEO Hashtags:**\n${Array.isArray(content.tags) ? content.tags.join(' ') : content.tags}\n\n` +
-      `✅ *Status: Video Published Successfully for AI Master Hub!*`;
+      `✅ *Status: Execution Completed for AI Master Hub!*`;
 
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
@@ -174,7 +180,7 @@ async function runAgent() {
       }),
     });
 
-    console.log("🎉 AI Master Hub Short Successfully Published!");
+    console.log("🎉 Execution Success!");
 
   } catch (error) {
     console.error("❌ Error occurred:", error.message);
