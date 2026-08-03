@@ -41,20 +41,63 @@ async function generateAudio(text, outputPath) {
   console.log("✅ Voiceover Audio Generated Successfully!");
 }
 
-// 3. Download Visual Background
+// 3. Download Visual Background (with validation + retry + guaranteed fallback)
 async function downloadVisualBackground(outputPath) {
   console.log("🖼️ Downloading High-Res Visual Background...");
-  const imageRes = await fetch("https://picsum.photos/1080/1920");
-  const buffer = await imageRes.buffer();
-  fs.writeFileSync(outputPath, buffer);
-  console.log("✅ Visual Background Ready!");
+
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      // cache-bust so we don't get stuck retrying the same (possibly bad) response
+      const imageRes = await fetch(`https://picsum.photos/1080/1920?random=${Date.now()}-${attempt}`);
+
+      if (!imageRes.ok) {
+        throw new Error(`HTTP ${imageRes.status} from picsum.photos`);
+      }
+      const contentType = imageRes.headers.get('content-type') || '';
+      if (!contentType.startsWith('image/')) {
+        throw new Error(`Unexpected content-type: ${contentType} (likely an error page, not an image)`);
+      }
+
+      const buffer = await imageRes.buffer();
+      if (!buffer || buffer.length < 1000) {
+        throw new Error(`Downloaded image too small (${buffer ? buffer.length : 0} bytes) — probably corrupt`);
+      }
+
+      fs.writeFileSync(outputPath, buffer);
+      console.log(`✅ Visual Background Ready! (${buffer.length} bytes, attempt ${attempt})`);
+      return;
+    } catch (err) {
+      console.warn(`⚠️ Background download attempt ${attempt}/${MAX_ATTEMPTS} failed: ${err.message}`);
+      if (attempt === MAX_ATTEMPTS) {
+        console.warn("⚠️ All download attempts failed — generating a solid-color fallback background instead.");
+        generateFallbackBackground(outputPath);
+      }
+    }
+  }
+}
+
+// 3b. Fallback background generator (no network needed) — guarantees a video always has *some* visual
+function generateFallbackBackground(outputPath) {
+  const command = `ffmpeg -nostdin -y -f lavfi -i color=c=0x1a1a2e:s=1080x1920:d=1 -frames:v 1 "${outputPath}"`;
+  execSync(command, { stdio: 'inherit' });
+  console.log("✅ Fallback background generated locally via FFmpeg.");
 }
 
 // 4. Render Video using FFmpeg
 function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
   console.log("🎬 Rendering Video for AI Master Hub...");
+
+  if (!fs.existsSync(imagePath) || fs.statSync(imagePath).size < 1000) {
+    throw new Error(`Background image missing or invalid at ${imagePath} — aborting render before ffmpeg runs.`);
+  }
+
   const command = `ffmpeg -nostdin -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -preset ultrafast -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${outputPath}"`;
   execSync(command, { stdio: 'inherit' });
+
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) {
+    throw new Error(`FFmpeg reported success but output video is missing/empty at ${outputPath}.`);
+  }
   console.log("✅ Video Rendering Complete!");
 }
 
