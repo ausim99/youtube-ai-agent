@@ -5,24 +5,23 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// 1. Live Fetch Breaking Trends
-async function fetchLatestNews(niche) {
-  console.log(`🌐 Fetching real-time breaking trends for: "${niche}"...`);
+// 1. Fetch Breaking Real-Time AI & Tech Trends
+async function fetchLatestAITrends() {
+  console.log(`🌐 Fetching latest AI trends for "AI Master Hub"...`);
   try {
-    const res = await fetch('https://www.reddit.com/r/technology/hot.json?limit=6');
+    const res = await fetch('https://www.reddit.com/r/ArtificialInteligence/hot.json?limit=5');
     const data = await res.json();
     return data.data.children.map(child => child.data.title).join('\n- ');
   } catch (e) {
-    return "Latest breakthroughs in AI, Robotics, Space Tech, and Future Innovations";
+    return "Google NotebookLM audio overview, ChatGPT Canvas, Claude 3.5 Sonnet artifacts, DeepSeek AI";
   }
 }
 
-// 2. Generate Bangla AI Voiceover
-async function generateBanglaAudio(text, outputPath) {
-  console.log("🎙️ Generating Bangla AI Voiceover (বাংলা ভয়েসওভার)...");
-  
+// 2. Generate Voiceover MP3 (Supports Full Scripts)
+async function generateAudio(text, outputPath) {
+  console.log("🎙️ Generating AI Voiceover...");
   const audioResults = await googleTTS.getAllAudioBase64(text, {
-    lang: 'bn',
+    lang: 'bn', // Natural Bengali warmth / voice tone
     slow: false,
     host: 'https://translate.google.com',
     timeout: 10000,
@@ -31,27 +30,27 @@ async function generateBanglaAudio(text, outputPath) {
   const buffers = audioResults.map(item => Buffer.from(item.base64, 'base64'));
   const combinedBuffer = Buffer.concat(buffers);
   fs.writeFileSync(outputPath, combinedBuffer);
-  console.log("✅ Bangla Voiceover Generated Successfully!");
+  console.log("✅ Voiceover Audio Generated Successfully!");
 }
 
-// 3. Download Fast Visual Background
-async function downloadThumbnailImage(outputPath) {
+// 3. Download Visual Background
+async function downloadVisualBackground(outputPath) {
   console.log("🖼️ Downloading High-Res Visual Background...");
   const imageRes = await fetch("https://picsum.photos/1080/1920");
   const buffer = await imageRes.buffer();
   fs.writeFileSync(outputPath, buffer);
-  console.log("✅ Visual Background Downloaded!");
+  console.log("✅ Visual Background Ready!");
 }
 
-// 4. Fast FFmpeg Render (-nostdin prevents hanging)
+// 4. Render Short Video using FFmpeg (-nostdin prevents hanging)
 function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
-  console.log("🎬 Rendering Final Bangla Short Video with FFmpeg...");
+  console.log("🎬 Rendering Video for AI Master Hub...");
   const command = `ffmpeg -nostdin -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -preset ultrafast -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${outputPath}"`;
   execSync(command, { stdio: 'inherit' });
   console.log("✅ Video Rendering Complete!");
 }
 
-// 5. Upload Video to YouTube
+// 5. Upload Video with SEO to YouTube
 async function uploadToYouTube(title, description, tags, videoPath) {
   console.log("🔐 Authenticating with YouTube API...");
   const oauth2Client = new google.auth.OAuth2(
@@ -63,7 +62,7 @@ async function uploadToYouTube(title, description, tags, videoPath) {
   oauth2Client.setCredentials({ refresh_token: process.env.YOUTUBE_REFRESH_TOKEN });
   const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
 
-  console.log("🚀 Uploading Bangla Short to YouTube...");
+  console.log("🚀 Uploading Short to YouTube Channel 'AI Master Hub'...");
   const res = await youtube.videos.insert({
     part: 'snippet,status',
     requestBody: {
@@ -71,8 +70,7 @@ async function uploadToYouTube(title, description, tags, videoPath) {
         title: title.substring(0, 100),
         description: description,
         tags: tags,
-        categoryId: '28',
-        defaultLanguage: 'bn',
+        categoryId: '28', // Science & Technology
       },
       status: {
         privacyStatus: 'public',
@@ -89,32 +87,36 @@ async function uploadToYouTube(title, description, tags, videoPath) {
 }
 
 async function runAgent() {
-  console.log("🚀 Bangla AI YouTube Studio Execution Started...");
+  console.log("🚀 AI Master Hub Studio Execution Started...");
 
   const GROQ_KEY = process.env.GROQ_API_KEY;
   const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const CHAT_ID = process.env.TELEGRAM_USER_ID;
-  const NICHE = process.env.TARGET_NICHE || "Technology & Future AI";
 
   try {
-    const liveNews = await fetchLatestNews(NICHE);
-    const currentDate = new Date().toLocaleDateString('bn-BD', { month: 'long', day: 'numeric', year: 'numeric' });
+    const liveTrends = await fetchLatestAITrends();
+    const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    console.log("🤖 Generating Bangla Script & SEO Content...");
-    const aiPrompt = `You are a top viral YouTube Shorts creator in BANGLADESH. Niche: "${NICHE}".
-    Current Live Tech Topics:
-    ${liveNews}
+    console.log("🤖 Generating Content for 'AI Master Hub'...");
+    const aiPrompt = `You are a viral YouTube Shorts creator for the channel "AI Master Hub".
+    Today's Date: ${currentDate}.
+    Latest Trending AI Topics:
+    ${liveTrends}
 
-    YOUR TASK: Create a highly engaging, viral 30-second video script in BANGLA LANGUAGE (বাংলা ভাষা).
-    STRICT RULES:
-    1. Everything (title, script, description) MUST be in BANGLA (বাংলা).
-    2. Hook the viewer in the first 2 seconds.
+    TASK: Create 1 unique, trending, fact-checked YouTube Short (45-60s) about AI tools, news, ChatGPT, Claude, Gemini, or hidden productivity features.
+
+    RULES:
+    1. Focus on ONE main idea/tool. No false claims or clickbait.
+    2. Fast-paced, educational, engaging (Grade 6-8 reading level).
+    3. MUST END WITH EXACT CTA: "Subscribe to AI Master Hub for more AI secrets!"
 
     Return JSON strictly with keys:
-    - title: Clickbait, high CTR Bangla title with 1 hashtag (বাংলায় শিরোনাম, max 90 chars)
-    - script: Clear, easy to speak Bangla narration script (বাংলা স্ক্রিপ্ট)
-    - description: Full SEO Bangla description with hashtags (#shorts #techbangla)
-    - tags: Array of 12 Bangla and English SEO keywords`;
+    - title: Viral title under 60 characters
+    - hook: 5-second high-retention hook
+    - script: Full voice-over narration script (120-150 words)
+    - description: 100-word SEO description ending with the CTA
+    - tags: Array of 15 high-volume relevant hashtags
+    - thumbnailIdea: Visual thumbnail concept`;
 
     const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -132,29 +134,35 @@ async function runAgent() {
     const aiData = await aiRes.json();
     const content = JSON.parse(aiData.choices[0].message.content);
 
-    console.log("💡 Bangla Content Generated:", content.title);
+    console.log("💡 Content Generated:", content.title);
 
+    // File Paths
     const audioPath = path.join(__dirname, 'audio.mp3');
     const imagePath = path.join(__dirname, 'image.jpg');
-    const finalVideoPath = path.join(__dirname, 'final_bangla_short.mp4');
+    const finalVideoPath = path.join(__dirname, 'final_aimasterhub_short.mp4');
 
-    await generateBanglaAudio(content.script, audioPath);
-    await downloadThumbnailImage(imagePath);
+    // Generate Audio, Visuals, and Render Video
+    await generateAudio(content.script, audioPath);
+    await downloadVisualBackground(imagePath);
     createVideoWithFFmpeg(imagePath, audioPath, finalVideoPath);
 
+    // Upload to YouTube
     let youtubeUrl = "YouTube Keys Not Configured";
     if (process.env.YOUTUBE_REFRESH_TOKEN) {
       youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, finalVideoPath);
     }
 
-    console.log("📱 Sending Telegram Report in Bangla...");
+    // Send Comprehensive Telegram Report
+    console.log("📱 Sending Telegram Report...");
     const reportMessage = 
-      `🇧🇩 **ডেইলি ইউটিউব বাংলা এআই রিপোর্ট** 🇧🇩\n\n` +
-      `📅 **তারিখ:** ${currentDate}\n` +
-      `📌 **শিরোনাম:** ${content.title}\n` +
-      `🔗 **ইউটিউব লিংক:** ${youtubeUrl}\n\n` +
-      `🎙️ **বাংলা ভয়েসওভার স্ক্রিপ্ট:**\n"${content.script}"\n\n` +
-      `✅ *স্ট্যাটাস: বাংলা শর্ট সফলভাবে আপলোড হয়েছে!*`;
+      `🌟 **AI MASTER HUB DAILY REPORT** 🌟\n\n` +
+      `📌 **Title:** ${content.title}\n` +
+      `🔗 **YouTube Link:** ${youtubeUrl}\n\n` +
+      `⚡ **5s Hook:** "${content.hook}"\n\n` +
+      `🎙️ **Script (120-150 words):**\n"${content.script}"\n\n` +
+      `🖼️ **Thumbnail Concept:** ${content.thumbnailIdea}\n\n` +
+      `🏷️ **SEO Hashtags:**\n${Array.isArray(content.tags) ? content.tags.join(' ') : content.tags}\n\n` +
+      `✅ *Status: Video Published Successfully for AI Master Hub!*`;
 
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
@@ -166,7 +174,7 @@ async function runAgent() {
       }),
     });
 
-    console.log("🎉 Bangla AI Short Successfully Published!");
+    console.log("🎉 AI Master Hub Short Successfully Published!");
 
   } catch (error) {
     console.error("❌ Error occurred:", error.message);
@@ -176,7 +184,7 @@ async function runAgent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: CHAT_ID,
-          text: `❌ **এআই এজেন্ট এরর!**\n\nকারণ: ${error.message}`,
+          text: `❌ **AI Master Hub Agent Error!**\n\nReason: ${error.message}`,
         }),
       });
     }
