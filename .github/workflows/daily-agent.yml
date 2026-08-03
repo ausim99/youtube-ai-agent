@@ -1,0 +1,35 @@
+name: Daily Autonomous YouTube AI Agent
+
+on:
+  schedule:
+    # Runs everyday at 6:00 PM UTC (Adjust if needed)
+    - cron: '0 18 * * *'
+  # Allows you to click a button in GitHub to run it manually anytime!
+  workflow_dispatch:
+
+jobs:
+  run-ai-agent:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Execute AI Agent (Idea -> Content -> YouTube -> Report)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
+          TARGET_NICHE: ${{ secrets.TARGET_NICHE }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: node scripts/agent.js
