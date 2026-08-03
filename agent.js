@@ -11,7 +11,15 @@ async function fetchLatestAITrends() {
   try {
     const res = await fetch('https://www.reddit.com/r/ArtificialInteligence/hot.json?limit=5');
     const data = await res.json();
-    return data.data.children.map(child => child.data.title).join('\n- ');
+    // Filter out low-engagement / stickied posts so we don't script something stale
+    const posts = data.data.children
+      .map(child => child.data)
+      .filter(p => !p.stickied && p.score >= 20)
+      .slice(0, 5);
+    if (posts.length === 0) {
+      throw new Error('No qualifying trending posts found');
+    }
+    return posts.map(p => `${p.title} (upvotes: ${p.score})`).join('\n- ');
   } catch (e) {
     return "Google NotebookLM audio overview, ChatGPT Canvas, Claude 3.5 Sonnet artifacts, DeepSeek AI";
   }
@@ -99,25 +107,41 @@ async function runAgent() {
     const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     console.log("🤖 Generating Content for 'AI Master Hub'...");
-    const aiPrompt = `You are a viral YouTube Shorts creator for the channel "AI Master Hub".
+
+    // ---------------------------------------------------------------
+    // IMPROVED PROMPT: structured hook, retention framework, fact-check
+    // guardrail, and a title formula — everything else (config, model,
+    // upload logic) is unchanged.
+    // ---------------------------------------------------------------
+    const aiPrompt = `You are a senior short-form video scriptwriter for the YouTube channel "AI Master Hub", specializing in AI tools and news for a tech-curious but non-expert audience.
+
 Today's Date: ${currentDate}.
-Latest Trending AI Topics:
+Candidate trending AI topics (Reddit, ranked by engagement):
 ${liveTrends}
 
-TASK: Create 1 unique, trending, fact-checked YouTube Short (45-60s) about AI tools, news, ChatGPT, Claude, Gemini, or hidden productivity features.
+STEP 1 — SELECT: Pick the ONE topic from the list above that is most concrete, most useful, and easiest to explain visually in 45-60 seconds. Avoid vague "AI news roundup" topics — pick something with a specific tool, feature, or number attached.
 
-RULES:
-1. Focus on ONE main idea/tool. No false claims or clickbait.
-2. Fast-paced, educational, engaging (Grade 6-8 reading level).
-3. MUST END WITH EXACT CTA: "Subscribe to AI Master Hub for more AI secrets!"
+STEP 2 — WRITE using this exact retention structure:
+- Hook (0-3s): Open with a specific number, a surprising capability, or a "you're doing X wrong" pattern interrupt. NOT a generic "Did you know AI can..." opener.
+- Setup (3-10s): State the problem this solves in one sentence a beginner understands.
+- Payoff (10-45s): Walk through the tool/feature step by step, in plain language. Use concrete specifics (names, numbers, steps) instead of vague hype ("game-changing", "revolutionary" are banned words).
+- CTA (45-60s): Must end with exactly this line: "Subscribe to AI Master Hub for more AI secrets!"
 
-Return JSON strictly with keys:
-- title: Viral title under 60 characters
-- hook: 5-second high-retention hook
-- script: Full voice-over narration script (120-150 words)
-- description: 100-word SEO description ending with the CTA
-- tags: Array of 15 high-volume relevant hashtags
-- thumbnailIdea: Visual thumbnail concept`;
+STEP 3 — FACT DISCIPLINE: Only state claims that are either (a) present in the candidate topics above, or (b) well-established, non-time-sensitive facts about how the tool/feature works. Do not invent version numbers, dates, pricing, or statistics. If unsure, describe the capability qualitatively instead of citing a specific figure.
+
+STEP 4 — TITLE FORMULA: Use one of these patterns, whichever fits the topic best:
+  "[Number] [Tool] Tricks Nobody Tells You About"
+  "[Tool] Just Did Something Wild — Here's What"
+  "Stop Using [Tool] Wrong (Do This Instead)"
+Keep it under 60 characters, no clickbait that the script doesn't deliver on.
+
+Return JSON strictly with keys, no markdown, no preamble:
+- title: per the title formula above, under 60 characters
+- hook: the exact 0-3s hook line
+- script: full voice-over narration (120-150 words), following the 4-part structure above, ending with the exact CTA line
+- description: 100-word SEO description that front-loads the main keyword in the first sentence, ends with the CTA
+- tags: array of 15 specific, high-relevance tags (mix of broad: "AI tools", "ChatGPT" and specific: the exact tool/feature name) — avoid generic filler hashtags
+- thumbnailIdea: one concrete visual concept (what's on screen, what text overlay, what facial expression/emotion) that matches the hook`;
 
     const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -154,7 +178,7 @@ Return JSON strictly with keys:
 
     // Send Telegram Report
     console.log("📱 Sending Telegram Report...");
-    const reportMessage = 
+    const reportMessage =
       `🌟 AI MASTER HUB DAILY REPORT 🌟\n\n` +
       `📌 Title: ${content.title}\n` +
       `🔗 YouTube Link: ${youtubeUrl}\n\n` +
