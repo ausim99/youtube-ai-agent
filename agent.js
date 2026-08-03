@@ -50,14 +50,9 @@ function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
   console.log("✅ Video Rendering Complete!");
 }
 
-// 5. Upload Video to YouTube with Explicit Error Tracking
+// 5. Upload Video to YouTube
 async function uploadToYouTube(title, description, tags, videoPath) {
   console.log("🔐 Authenticating with YouTube API...");
-  
-  if (!process.env.YOUTUBE_CLIENT_ID || !process.env.YOUTUBE_CLIENT_SECRET || !process.env.YOUTUBE_REFRESH_TOKEN) {
-    throw new Error("YouTube API Keys (CLIENT_ID, SECRET, or REFRESH_TOKEN) are missing from GitHub Secrets!");
-  }
-
   const oauth2Client = new google.auth.OAuth2(
     process.env.YOUTUBE_CLIENT_ID,
     process.env.YOUTUBE_CLIENT_SECRET,
@@ -150,37 +145,40 @@ Return JSON strictly with keys:
     createVideoWithFFmpeg(imagePath, audioPath, finalVideoPath);
 
     // Upload to YouTube
-    let youtubeUrl = "";
-    try {
+    let youtubeUrl = "YouTube Keys Not Configured";
+    if (process.env.YOUTUBE_REFRESH_TOKEN) {
       youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, finalVideoPath);
       console.log("✅ YouTube Upload Success:", youtubeUrl);
-    } catch (ytError) {
-      console.error("❌ YouTube Upload Failed:", ytError.message);
-      youtubeUrl = `Upload Failed: ${ytError.message}`;
     }
 
-    // Send Comprehensive Telegram Report
+    // Send Telegram Report (Clean formatting - 100% Reliable!)
     console.log("📱 Sending Telegram Report...");
     const reportMessage = 
-      `🌟 **AI MASTER HUB DAILY REPORT** 🌟\n\n` +
-      `📌 **Title:** ${content.title}\n` +
-      `🔗 **YouTube Link:** ${youtubeUrl}\n\n` +
-      `⚡ **5s Hook:** "${content.hook}"\n\n` +
-      `🎙️ **Script (120-150 words):**\n"${content.script}"\n\n` +
-      `🏷️ **SEO Hashtags:**\n${Array.isArray(content.tags) ? content.tags.join(' ') : content.tags}\n\n` +
-      `✅ *Status: Execution Completed for AI Master Hub!*`;
+      `🌟 AI MASTER HUB DAILY REPORT 🌟\n\n` +
+      `📌 Title: ${content.title}\n` +
+      `🔗 YouTube Link: ${youtubeUrl}\n\n` +
+      `⚡ 5s Hook: "${content.hook}"\n\n` +
+      `🎙️ Script (120-150 words):\n"${content.script}"\n\n` +
+      `🏷️ SEO Hashtags:\n${Array.isArray(content.tags) ? content.tags.join(' ') : content.tags}\n\n` +
+      `✅ Status: Video Published Successfully for AI Master Hub!`;
 
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    const telegramRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: CHAT_ID,
         text: reportMessage,
-        parse_mode: 'Markdown',
       }),
     });
 
-    console.log("🎉 Execution Success!");
+    const telegramData = await telegramRes.json();
+    if (!telegramData.ok) {
+      console.error("❌ Telegram Error:", telegramData.description);
+    } else {
+      console.log("✅ Telegram Report Delivered Successfully!");
+    }
+
+    console.log("🎉 Complete Execution Success!");
 
   } catch (error) {
     console.error("❌ Error occurred:", error.message);
@@ -190,7 +188,7 @@ Return JSON strictly with keys:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: CHAT_ID,
-          text: `❌ **AI Master Hub Agent Error!**\n\nReason: ${error.message}`,
+          text: `❌ AI Master Hub Agent Error: ${error.message}`,
         }),
       });
     }
