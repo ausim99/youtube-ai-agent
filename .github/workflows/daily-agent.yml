@@ -18,9 +18,12 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Install Dependencies
         run: |
-          npm install node-fetch@2 googleapis
+          npm install node-fetch@2 googleapis google-tts-api
 
       - name: Execute AI Agent
         env:
