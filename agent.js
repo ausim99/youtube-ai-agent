@@ -9,7 +9,6 @@ const { execSync } = require('child_process');
 async function fetchLatestNews(niche) {
   console.log(`🌐 Fetching real-time breaking trends for: "${niche}"...`);
   try {
-    // Live feed from Reddit / Technology
     const res = await fetch('https://www.reddit.com/r/technology/hot.json?limit=6');
     const data = await res.json();
     const headlines = data.data.children.map(child => child.data.title).join('\n- ');
@@ -19,17 +18,22 @@ async function fetchLatestNews(niche) {
   }
 }
 
-// 2. Generate Voiceover MP3 from AI Script
+// 2. Generate Voiceover MP3 (Supports Scripts of ANY Length!)
 async function generateAudio(text, outputPath) {
   console.log("🎙️ Generating Professional AI Voiceover...");
-  const base64Audio = await googleTTS.getAudioBase64(text.substring(0, 250), {
+  
+  // Use getAllAudioBase64 to automatically handle long text (>200 chars)
+  const audioResults = await googleTTS.getAllAudioBase64(text, {
     lang: 'en',
     slow: false,
     host: 'https://translate.google.com',
     timeout: 10000,
   });
-  const buffer = Buffer.from(base64Audio, 'base64');
-  fs.writeFileSync(outputPath, buffer);
+
+  const buffers = audioResults.map(item => Buffer.from(item.base64, 'base64'));
+  const combinedBuffer = Buffer.concat(buffers);
+  fs.writeFileSync(outputPath, combinedBuffer);
+  console.log("✅ Voiceover Audio Generated Successfully!");
 }
 
 // 3. Fetch High-Quality Professional Visual
@@ -122,11 +126,11 @@ async function runAgent() {
     STRICT RULES:
     1. NEVER start with generic phrases like "Hey guys", "In this video", or "Did you know?". Start with a strong 2-second visual hook.
     2. Tone: Authoritative, modern, cinematic, professional.
-    3. Ensure content is 100% unique, fresh, and informative.
+    3. Keep script around 30-45 seconds spoken length.
 
     Return JSON strictly with keys:
     - title: Ultra high CTR, short, professional title with 1 hashtag (Max 90 chars)
-    - script: Professional 20-30 second spoken narration script (clear, concise)
+    - script: Professional spoken narration script
     - description: Rich SEO description with key takeaways, timestamps, and viral #shorts hashtags
     - tags: Array of 12 targeted SEO tags`;
 
@@ -185,22 +189,4 @@ async function runAgent() {
       }),
     });
 
-    console.log("🎉 Complete Execution Success!");
-
-  } catch (error) {
-    console.error("❌ Error occurred:", error.message);
-    if (TELEGRAM_TOKEN && CHAT_ID) {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text: `❌ **Agent Execution Failed!**\n\nReason: ${error.message}`,
-        }),
-      });
-    }
-    process.exit(1);
-  }
-}
-
-runAgent();
+    console.log("🎉 Complete Execution Succ
