@@ -18,11 +18,9 @@ async function fetchLatestNews(niche) {
   }
 }
 
-// 2. Generate Voiceover MP3 (Supports Scripts of ANY Length!)
+// 2. Generate Voiceover MP3
 async function generateAudio(text, outputPath) {
   console.log("🎙️ Generating Professional AI Voiceover...");
-  
-  // Use getAllAudioBase64 to automatically handle long text (>200 chars)
   const audioResults = await googleTTS.getAllAudioBase64(text, {
     lang: 'en',
     slow: false,
@@ -36,22 +34,22 @@ async function generateAudio(text, outputPath) {
   console.log("✅ Voiceover Audio Generated Successfully!");
 }
 
-// 3. Fetch High-Quality Professional Visual
+// 3. Fetch High-Quality Visual
 async function downloadThumbnailImage(outputPath) {
-  console.log(`🖼️ Downloading High-Res Visual...`);
-  const imageRes = await fetch(`https://picsum.photos/1080/1920`); // Vertical 9:16 Short format
+  console.log("🖼️ Downloading High-Res Visual...");
+  const imageRes = await fetch("https://picsum.photos/1080/1920");
   const buffer = await imageRes.buffer();
   fs.writeFileSync(outputPath, buffer);
 }
 
-// 4. Render Video using FFmpeg
+// 4. Render Video with FFmpeg
 function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
   console.log("🎬 Rendering Video with FFmpeg...");
   const command = `ffmpeg -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${outputPath}"`;
   execSync(command, { stdio: 'inherit' });
 }
 
-// 5. Upload Video with Pro SEO to YouTube
+// 5. Upload Video to YouTube
 async function uploadToYouTube(title, description, tags, videoPath, thumbnailPath) {
   console.log("🔐 Authenticating with YouTube API...");
   const oauth2Client = new google.auth.OAuth2(
@@ -71,7 +69,7 @@ async function uploadToYouTube(title, description, tags, videoPath, thumbnailPat
         title: title.substring(0, 100),
         description: description,
         tags: tags,
-        categoryId: '28', // Science & Technology
+        categoryId: '28',
       },
       status: {
         privacyStatus: 'public',
@@ -86,7 +84,6 @@ async function uploadToYouTube(title, description, tags, videoPath, thumbnailPat
 
   const videoId = res.data.id;
 
-  // Custom Thumbnail Upload
   try {
     await youtube.thumbnails.set({
       videoId: videoId,
@@ -111,28 +108,26 @@ async function runAgent() {
   const NICHE = process.env.TARGET_NICHE || "Technology & Future";
 
   try {
-    // STEP A: Fetch Real-Time Live News
     const liveNews = await fetchLatestNews(NICHE);
     const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // STEP B: Generate Professional, Unique Script
-    console.log(`🤖 Generating Pro Content based on Live Trends...`);
+    console.log("🤖 Generating Pro Content based on Live Trends...");
     const aiPrompt = `You are a professional documentary media producer (like Vox, Bloomberg Technology, or MKBHD).
-    Today's Date: ${currentDate}.
-    Current Breaking Live Headlines in ${NICHE}:
-    ${liveNews}
+Today's Date: ${currentDate}.
+Current Breaking Live Headlines in ${NICHE}:
+${liveNews}
 
-    YOUR GOAL: Pick 1 specific breaking story or breakthrough and create a unique, highly professional YouTube Short.
-    STRICT RULES:
-    1. NEVER start with generic phrases like "Hey guys", "In this video", or "Did you know?". Start with a strong 2-second visual hook.
-    2. Tone: Authoritative, modern, cinematic, professional.
-    3. Keep script around 30-45 seconds spoken length.
+YOUR GOAL: Pick 1 specific breaking story or breakthrough and create a unique, highly professional YouTube Short.
+STRICT RULES:
+1. NEVER start with generic phrases like "Hey guys", "In this video", or "Did you know?". Start with a strong 2-second visual hook.
+2. Tone: Authoritative, modern, cinematic, professional.
+3. Keep script around 30-45 seconds spoken length.
 
-    Return JSON strictly with keys:
-    - title: Ultra high CTR, short, professional title with 1 hashtag (Max 90 chars)
-    - script: Professional spoken narration script
-    - description: Rich SEO description with key takeaways, timestamps, and viral #shorts hashtags
-    - tags: Array of 12 targeted SEO tags`;
+Return JSON strictly with keys:
+- title: Ultra high CTR, short, professional title with 1 hashtag (Max 90 chars)
+- script: Professional spoken narration script
+- description: Rich SEO description with key takeaways, timestamps, and viral #shorts hashtags
+- tags: Array of 12 targeted SEO tags`;
 
     const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -152,23 +147,19 @@ async function runAgent() {
 
     console.log("💡 Professional Content Generated:", content.title);
 
-    // File Paths
     const audioPath = path.join(__dirname, 'audio.mp3');
     const imagePath = path.join(__dirname, 'image.jpg');
     const videoPath = path.join(__dirname, 'final_short.mp4');
 
-    // STEP C: Render Voiceover + Visuals + Video
     await generateAudio(content.script, audioPath);
     await downloadThumbnailImage(imagePath);
     createVideoWithFFmpeg(imagePath, audioPath, videoPath);
 
-    // STEP D: Upload to YouTube
     let youtubeUrl = "YouTube Keys Not Configured";
     if (process.env.YOUTUBE_REFRESH_TOKEN) {
       youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, videoPath, imagePath);
     }
 
-    // STEP E: Send Comprehensive Telegram Report
     console.log("📱 Sending Telegram Report...");
     const reportMessage = 
       `🌟 **PRO YOUTUBE AI AGENT REPORT** 🌟\n\n` +
@@ -189,4 +180,22 @@ async function runAgent() {
       }),
     });
 
-    console.log("🎉 Complete Execution Succ
+    console.log("🎉 Complete Execution Success!");
+
+  } catch (error) {
+    console.error("❌ Error occurred:", error.message);
+    if (TELEGRAM_TOKEN && CHAT_ID) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: `❌ **Agent Execution Failed!**\n\nReason: ${error.message}`,
+        }),
+      });
+    }
+    process.exit(1);
+  }
+}
+
+runAgent();
