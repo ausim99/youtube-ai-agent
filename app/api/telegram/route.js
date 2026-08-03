@@ -1,31 +1,53 @@
-
 import { NextResponse } from 'next/server';
 
 export async function POST(req) {
-  const body = await req.json();
-  const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  try {
+    const body = await req.json();
 
-  if (body.message) {
-    const chatId = body.message.chat.id;
-    const userText = body.message.text;
+    if (body.message) {
+      const chatId = body.message.chat.id;
+      const text = body.message.text.trim();
 
-    let reply = "";
+      const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+      const GITHUB_PAT = process.env.GH_PAT;
+      const REPO_OWNER = process.env.GH_OWNER;
+      const REPO_NAME = process.env.GH_REPO || 'youtube-ai-agent';
 
-    if (userText.startsWith('/status')) {
-      reply = "🤖 Agent Status: Active. Daily run scheduled for 6:00 PM.";
-    } else if (userText.startsWith('/run')) {
-      reply = "⚡ Command received! Triggering video generation and publishing now...";
-      // Triggers immediate video publishing workflow
-    } else {
-      reply = `🧠 Instruction Received: "${userText}". I have updated my instructions for the next 6:00 PM run.`;
+      let responseText = "";
+
+      if (text.startsWith('/run') || text.startsWith('/generate') || text.startsWith('/start')) {
+        responseText = "🚀 Command received! Triggering YouTube AI Agent on GitHub. Generating and uploading video now...";
+
+        // Trigger GitHub Actions Workflow via API
+        const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/daily-agent.yml/dispatches`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GITHUB_PAT}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Vercel-Telegram-Bot'
+          },
+          body: JSON.stringify({
+            ref: 'main', // Branch name
+          }),
+        });
+
+        if (!ghRes.ok) {
+          responseText = "❌ Failed to trigger GitHub Action. Please check your GH_PAT token in Vercel.";
+        }
+      } else {
+        responseText = `🤖 Hello! Send **/run** to generate and publish a new YouTube Short right now!`;
+      }
+
+      // Send confirmation message back to Telegram
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: responseText, parse_mode: 'Markdown' }),
+      });
     }
 
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: reply }),
-    });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true });
 }
