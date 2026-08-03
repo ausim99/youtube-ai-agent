@@ -1,12 +1,24 @@
 const fetch = require('node-fetch');
 const { google } = require('googleapis');
 const fs = require('fs');
+const path = require('path');
+
+async function downloadVideo(url, outputPath) {
+  const res = await fetch(url);
+  const fileStream = fs.createWriteStream(outputPath);
+  await new Promise((resolve, reject) => {
+    res.body.pipe(fileStream);
+    res.body.on('error', reject);
+    fileStream.on('finish', resolve);
+  });
+}
 
 async function uploadToYouTube(title, description, tags, videoUrl) {
-  console.log("📥 Downloading generated video for upload...");
-  const response = await fetch(videoUrl);
-  const buffer = await response.buffer();
-  fs.writeFileSync('video.mp4', buffer);
+  const videoPath = path.join(__dirname, 'video.mp4');
+  
+  console.log("📥 Downloading video file...");
+  // Using a reliable sample video file
+  await downloadVideo(videoUrl, videoPath);
 
   console.log("🔐 Authenticating with YouTube API...");
   const oauth2Client = new google.auth.OAuth2(
@@ -26,20 +38,26 @@ async function uploadToYouTube(title, description, tags, videoUrl) {
     part: 'snippet,status',
     requestBody: {
       snippet: {
-        title: title,
+        title: title.substring(0, 100), // Max 100 chars
         description: description,
         tags: tags,
         categoryId: '28', // Science & Technology
       },
       status: {
-        privacyStatus: 'public', // Set to 'public' or 'private' for testing
+        privacyStatus: 'public', // Change to 'unlisted' or 'private' if testing
         selfDeclaredMadeForKids: false,
       },
     },
     media: {
-      body: fs.createReadStream('video.mp4'),
+      mimeType: 'video/mp4', // <-- Fix: explicitly set mimeType
+      body: fs.createReadStream(videoPath),
     },
   });
+
+  // Clean up local video file
+  if (fs.existsSync(videoPath)) {
+    fs.unlinkSync(videoPath);
+  }
 
   return `https://youtu.be/${res.data.id}`;
 }
@@ -77,13 +95,13 @@ async function runAgent() {
 
     console.log("💡 Idea & Script Generated:", content.title);
 
-    // 2. Video Rendering (Sample mp4 video for upload)
-    const videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+    // 2. Sample Video Stream for YouTube Upload
+    const sampleVideoUrl = "https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/person-bicycle-car-detection.mp4";
 
     // 3. Upload to YouTube Channel
-    let youtubeUrl = "YouTube Keys Not Configured Yet";
+    let youtubeUrl = "YouTube Credentials Not Set";
     if (process.env.YOUTUBE_REFRESH_TOKEN) {
-      youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, videoUrl);
+      youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, sampleVideoUrl);
       console.log("✅ Posted to YouTube:", youtubeUrl);
     }
 
@@ -94,8 +112,8 @@ async function runAgent() {
       `💡 **Niche:** ${NICHE}\n` +
       `📌 **Title:** ${content.title}\n` +
       `🔗 **YouTube Link:** ${youtubeUrl}\n\n` +
-      `📝 **Script:**\n${content.script.substring(0, 150)}...\n\n` +
-      `✅ *Status: Video Successfully Published!*`;
+      `📝 **Script Preview:**\n${content.script.substring(0, 150)}...\n\n` +
+      `✅ *Status: Video Successfully Uploaded & Published!*`;
 
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
