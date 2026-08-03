@@ -17,12 +17,12 @@ async function fetchLatestNews(niche) {
   }
 }
 
-// 2. Generate Bangla AI Voiceover (বাংলা ভয়েসওভার)
+// 2. Generate Bangla AI Voiceover
 async function generateBanglaAudio(text, outputPath) {
   console.log("🎙️ Generating Bangla AI Voiceover (বাংলা ভয়েসওভার)...");
   
   const audioResults = await googleTTS.getAllAudioBase64(text, {
-    lang: 'bn', // Bengali Language Code
+    lang: 'bn',
     slow: false,
     host: 'https://translate.google.com',
     timeout: 10000,
@@ -34,27 +34,19 @@ async function generateBanglaAudio(text, outputPath) {
   console.log("✅ Bangla Voiceover Generated Successfully!");
 }
 
-// 3. Download AI Video Background (HD Vertical Loop)
-async function downloadAIVideoBackground(outputPath) {
-  console.log("🎬 Downloading High-Quality AI Video Background...");
-  // Curated vertical 9:16 HD AI/Tech video background loop
-  const videoUrl = "https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/person-bicycle-car-detection.mp4";
-  
-  const res = await fetch(videoUrl);
-  const fileStream = fs.createWriteStream(outputPath);
-  await new Promise((resolve, reject) => {
-    res.body.pipe(fileStream);
-    res.body.on('error', reject);
-    fileStream.on('finish', resolve);
-  });
-  console.log("✅ AI Video Background Downloaded!");
+// 3. Download Fast Visual Background
+async function downloadThumbnailImage(outputPath) {
+  console.log("🖼️ Downloading High-Res Visual Background...");
+  const imageRes = await fetch("https://picsum.photos/1080/1920");
+  const buffer = await imageRes.buffer();
+  fs.writeFileSync(outputPath, buffer);
+  console.log("✅ Visual Background Downloaded!");
 }
 
-// 4. Render Video using FFmpeg (Merges AI Video + Bangla Audio)
-function createVideoWithFFmpeg(bgVideoPath, audioPath, outputPath) {
+// 4. Fast FFmpeg Render (-nostdin prevents hanging)
+function createVideoWithFFmpeg(imagePath, audioPath, outputPath) {
   console.log("🎬 Rendering Final Bangla Short Video with FFmpeg...");
-  // Loops the background video smoothly to match audio duration
-  const command = `ffmpeg -y -stream_loop -1 -i "${bgVideoPath}" -i "${audioPath}" -c:v libx264 -preset ultrafast -c:a aac -b:a 192k -shortest -pix_fmt yuv420p "${outputPath}"`;
+  const command = `ffmpeg -nostdin -y -loop 1 -i "${imagePath}" -i "${audioPath}" -c:v libx264 -preset ultrafast -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${outputPath}"`;
   execSync(command, { stdio: 'inherit' });
   console.log("✅ Video Rendering Complete!");
 }
@@ -79,7 +71,7 @@ async function uploadToYouTube(title, description, tags, videoPath) {
         title: title.substring(0, 100),
         description: description,
         tags: tags,
-        categoryId: '28', // Science & Technology
+        categoryId: '28',
         defaultLanguage: 'bn',
       },
       status: {
@@ -117,10 +109,9 @@ async function runAgent() {
     STRICT RULES:
     1. Everything (title, script, description) MUST be in BANGLA (বাংলা).
     2. Hook the viewer in the first 2 seconds.
-    3. Make it professional, clear, and informative.
 
     Return JSON strictly with keys:
-    - title: Clickbait, high CTR Bangla title with 1 hashtag (বাংলায শিরোনাম, max 90 chars)
+    - title: Clickbait, high CTR Bangla title with 1 hashtag (বাংলায় শিরোনাম, max 90 chars)
     - script: Clear, easy to speak Bangla narration script (বাংলা স্ক্রিপ্ট)
     - description: Full SEO Bangla description with hashtags (#shorts #techbangla)
     - tags: Array of 12 Bangla and English SEO keywords`;
@@ -143,27 +134,19 @@ async function runAgent() {
 
     console.log("💡 Bangla Content Generated:", content.title);
 
-    // File Paths
     const audioPath = path.join(__dirname, 'audio.mp3');
-    const bgVideoPath = path.join(__dirname, 'bg_video.mp4');
+    const imagePath = path.join(__dirname, 'image.jpg');
     const finalVideoPath = path.join(__dirname, 'final_bangla_short.mp4');
 
-    // STEP A: Generate Bangla Voiceover
     await generateBanglaAudio(content.script, audioPath);
+    await downloadThumbnailImage(imagePath);
+    createVideoWithFFmpeg(imagePath, audioPath, finalVideoPath);
 
-    // STEP B: Download AI Video Background
-    await downloadAIVideoBackground(bgVideoPath);
-
-    // STEP C: Merge AI Video Background + Bangla Voiceover
-    createVideoWithFFmpeg(bgVideoPath, audioPath, finalVideoPath);
-
-    // STEP D: Upload to YouTube
     let youtubeUrl = "YouTube Keys Not Configured";
     if (process.env.YOUTUBE_REFRESH_TOKEN) {
       youtubeUrl = await uploadToYouTube(content.title, content.description, content.tags, finalVideoPath);
     }
 
-    // STEP E: Send Telegram Report in Bangla
     console.log("📱 Sending Telegram Report in Bangla...");
     const reportMessage = 
       `🇧🇩 **ডেইলি ইউটিউব বাংলা এআই রিপোর্ট** 🇧🇩\n\n` +
@@ -171,7 +154,7 @@ async function runAgent() {
       `📌 **শিরোনাম:** ${content.title}\n` +
       `🔗 **ইউটিউব লিংক:** ${youtubeUrl}\n\n` +
       `🎙️ **বাংলা ভয়েসওভার স্ক্রিপ্ট:**\n"${content.script}"\n\n` +
-      `✅ *স্ট্যাটাস: এআই ব্যাকগ্রাউন্ড ভিডিও সহ বাংলা শর্ট সফলভাবে আপলোড হয়েছে!*`;
+      `✅ *স্ট্যাটাস: বাংলা শর্ট সফলভাবে আপলোড হয়েছে!*`;
 
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
@@ -183,7 +166,7 @@ async function runAgent() {
       }),
     });
 
-    console.log("🎉 Bangla AI Short Successfully Created & Published!");
+    console.log("🎉 Bangla AI Short Successfully Published!");
 
   } catch (error) {
     console.error("❌ Error occurred:", error.message);
